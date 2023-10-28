@@ -3,8 +3,6 @@ from ultralytics import YOLO
 from collections import defaultdict
 import time
 
-inicio = time.time()
-
 # Cargar el modelo YOLOv8
 model = YOLO('yolov8n.pt')
   
@@ -17,7 +15,7 @@ x_start, y_start, width, height = 60, 700, 375, 250  # Ajustar estos valores seg
 roi = (x_start, y_start, width, height)
 
 # Almacenar el historial de seguimiento
-track_history = defaultdict(lambda: [])
+track_history = defaultdict(lambda: []) # devuelve [] si se intenta acceder a un elemento que no existe todavía, eso pasará con los frames nuevos
 
 # Actualizar tracking cada x frames
 tracking_update_interval = 2
@@ -43,6 +41,10 @@ vel_update_interval = 1
     # Diccionario para almacenar las últimas velocidades de los coches
 last_speeds = {}
 
+
+
+inicio = time.time()
+
 # Bucle a través de los fotogramas del video
 while cap.isOpened():
     success, frame = cap.read() # leer cada frame (success -> si se ha leído o no el frame, true o false)
@@ -51,9 +53,9 @@ while cap.isOpened():
         
         if frame_counter % tracking_update_interval == 1:
             results = model.track(frame, persist=True) # para detectar y seguir objetos del frame
-            annotated_frame = results[0].plot() # detecciones realizadas se dibujan en el frame
+            annotated_frame = results[0].plot() # frame con detecciones realizadas (se dibujan en el frame)
             boxes = results[0].boxes.xywh.cpu() # cajas delimitadoras de los objetos (de ahi se saca x,y,w,h)
-            track_ids = results[0].boxes.id.int().cpu().tolist() # extraer ids unicos de seguimiento para los objetos, pra seguir el mismo a lo largo de varios frames
+            track_ids = results[0].boxes.id.int().cpu().tolist() # asignar ids unicos de seguimiento para los objetos, pra seguir el mismo a lo largo de varios frames sin repetir
             class_ids = results[0].boxes.cls.cpu().tolist() # class ids que tiene YOLO para ese objeto (0: person, 1:bici, 2:car, 3:moto...)
                             
             for box, track_id, class_id in zip(boxes, track_ids, class_ids):
@@ -83,9 +85,9 @@ while cap.isOpened():
         speed_to_show = last_speeds.get(track_id, 0)  # Usar 0 si el track_id no está en last_speeds
         cv2.putText(annotated_frame, f"Speed: {speed_to_show:.2f} km/h", (int(x), int(y) - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
-        cv2.rectangle(annotated_frame, (x_start, y_start), (x_start + width, y_start + height), (0, 255, 0), 2)  # Dibujar la ROI
-        cv2.putText(annotated_frame, f"Coches bajando: {coches_bajando}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) # muestra los coches bajando
-        cv2.putText(annotated_frame, f"Coches subiendo: {coches_subiendo}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) # muestra los coches subiendo
+        cv2.rectangle(annotated_frame, (x_start, y_start), (x_start + width, y_start + height), (0, 255, 0), 2)  # Dibujar la ROI verde con canal rGb y grosor 2
+        cv2.putText(annotated_frame, f"Coches bajando: {coches_bajando}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) # muestra los coches bajando / coordenadas del texto (10,30) / 1 es tamaño de escala
+        cv2.putText(annotated_frame, f"Coches subiendo: {coches_subiendo}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2) # muestra los coches subiendo / coordenadas del texto (10,30)
         
     
         
@@ -97,12 +99,14 @@ while cap.isOpened():
         break
 
 
-print(f"Coches que han subido: {coches_subiendo}")
-print(f"Coches que han bajado: {coches_bajando}")
-
 fin = time.time()
 tiempo_total = fin - inicio
 print(f"Tarda {tiempo_total} segundos en ejecutarse.")
+
+
+print(f"Coches que han bajado: {coches_bajando}")
+print(f"Coches que han subido: {coches_subiendo}")
+
 
 cap.release()
 cv2.destroyAllWindows()
